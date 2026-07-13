@@ -29,7 +29,7 @@ AUTHOR:
 
 import streamlit as st
 from utils.loader import load_polling_data
-from scripts.search import PollingStationSearch
+from scripts.search_engine import PollingStationSearch
 
 # =====================================================================
 # PAGE CONFIGURATION

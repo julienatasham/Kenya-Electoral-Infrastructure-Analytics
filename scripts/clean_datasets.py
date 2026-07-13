@@ -1,29 +1,28 @@
+
 """
 =========================================================
 KENYA ELECTORAL INFRASTRUCTURE ANALYTICS PLATFORM
 
-Script: clean_datasets.py
+Script:
+    clean_datasets.py
 
 Purpose:
-    Clean every extracted IEBC CSV automatically.
+    Automatically clean extracted IEBC CSV datasets.
 
 Datasets Supported:
     - Constituency
     - Polling Station
     - Diaspora
-    - Prison
+    - Prison Voters
 
 Output:
-    Clean CSVs saved in cleaned_csvs/
+    cleaned_csvs/
 =========================================================
 """
 
-# =========================================================
-# IMPORTS
-# =========================================================
-
 import os
 import pandas as pd
+
 
 # =========================================================
 # PROJECT PATHS
@@ -36,8 +35,9 @@ OUTPUT_DIR = os.path.join(PROJECT_DIR, "cleaned_csvs")
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
+
 # =========================================================
-# STANDARD SCHEMAS
+# STANDARD DATASET SCHEMAS
 # =========================================================
 
 SCHEMAS = {
@@ -49,6 +49,7 @@ SCHEMAS = {
         "constituency_name",
         "registered_voters"
     ],
+
 
     "polling": [
         "county_code",
@@ -64,6 +65,7 @@ SCHEMAS = {
         "registered_voters"
     ],
 
+
     "diaspora": [
         "country_code",
         "country_name",
@@ -76,14 +78,27 @@ SCHEMAS = {
         "registered_voters"
     ],
 
+
     "prisons": [
-        # Update this once we inspect the prison dataset
+        "county_code",
+        "county_name",
+        "constituency_code",
+        "constituency_name",
+        "ward_code",
+        "ward_name",
+        "registration_centre_code",
+        "registration_centre_name",
+        "polling_station_code",
+        "polling_station_name",
+        "registered_voters"
     ]
 
 }
 
+
+
 # =========================================================
-# DATASET DETECTION
+# DATASET IDENTIFICATION
 # =========================================================
 
 def detect_dataset(filename):
@@ -93,77 +108,55 @@ def detect_dataset(filename):
     if "constituency" in filename:
         return "constituency"
 
-    elif "polling" in filename:
+    if "polling" in filename:
         return "polling"
 
-    elif "diaspora" in filename:
+    if "diaspora" in filename:
         return "diaspora"
 
-    elif "prison" in filename:
+    if "prison" in filename:
         return "prisons"
 
     return None
 
 
+
 # =========================================================
-# REMOVE REPORT TITLES
+# REMOVE UNWANTED ROWS
 # =========================================================
 
 def remove_titles(df):
 
-    first_col = df.iloc[:, 0].astype(str)
+    first = df.iloc[:,0].astype(str)
 
-    titles = (
-        first_col.str.contains(
-            "REGISTERED VOTERS",
+    return df[
+        ~first.str.contains(
+            "REGISTERED VOTERS|REGISTER OF VOTERS",
             case=False,
             na=False
         )
-        |
-        first_col.str.contains(
-            "REGISTER OF VOTERS",
-            case=False,
-            na=False
-        )
-    )
-
-    return df[~titles]
+    ]
 
 
-# =========================================================
-# REMOVE REPEATED HEADERS
-# =========================================================
 
 def remove_headers(df):
 
-    first_col = df.iloc[:, 0].astype(str)
+    first = df.iloc[:,0].astype(str)
 
-    repeated = (
-        first_col.str.contains(
-            "County Code",
+    return df[
+        ~first.str.contains(
+            "County Code|Code|Country Code",
             case=False,
             na=False
         )
-        |
-        first_col.str.contains(
-            "^Code$",
-            case=False,
-            na=False
-        )
-    )
-
-    return df[~repeated]
+    ]
 
 
-# =========================================================
-# REMOVE INDEX ROWS
-# =========================================================
 
-def remove_index_rows(df):
+def remove_blank_rows(df):
 
-    first_col = df.iloc[:, 0].astype(str)
+    return df.dropna(how="all")
 
-    return df[first_col != "0"]
 
 
 # =========================================================
@@ -172,10 +165,7 @@ def remove_index_rows(df):
 
 def rename_columns(df, dataset):
 
-    schema = SCHEMAS.get(dataset)
-
-    if not schema:
-        return df
+    schema = SCHEMAS[dataset]
 
     if len(df.columns) >= len(schema):
 
@@ -183,7 +173,14 @@ def rename_columns(df, dataset):
 
         df.columns = schema
 
+    else:
+
+        print(
+            "Warning: Column count does not match schema"
+        )
+
     return df
+
 
 
 # =========================================================
@@ -192,57 +189,67 @@ def rename_columns(df, dataset):
 
 def clean_text(df):
 
-    for column in df.columns:
+    for col in df.columns:
 
-        df[column] = (
-            df[column]
+        df[col] = (
+            df[col]
             .astype(str)
             .str.strip()
-            .str.replace(r"\s+", " ", regex=True)
+            .str.replace(
+                r"\s+",
+                " ",
+                regex=True
+            )
         )
 
     return df
 
 
+
 # =========================================================
-# CONVERT REGISTERED VOTERS
+# CONVERT VOTER NUMBERS
 # =========================================================
 
 def convert_voters(df):
 
-    if "registered_voters" not in df.columns:
-        return df
+    if "registered_voters" in df.columns:
 
-    df["registered_voters"] = (
-        df["registered_voters"]
-        .str.replace(",", "", regex=False)
-    )
+        df["registered_voters"] = (
+            df["registered_voters"]
+            .str.replace(",", "", regex=False)
+        )
 
-    df["registered_voters"] = pd.to_numeric(
-        df["registered_voters"],
-        errors="coerce"
-    )
+        df["registered_voters"] = pd.to_numeric(
+            df["registered_voters"],
+            errors="coerce"
+        )
 
     return df
 
 
+
 # =========================================================
-# VALIDATE DATA
+# VALIDATION
 # =========================================================
 
 def validate(df):
 
     print(f"Rows: {len(df):,}")
 
-    print(f"Duplicates: {df.duplicated().sum():,}")
+    print(
+        f"Duplicates: {df.duplicated().sum():,}"
+    )
 
-    print("\nMissing Values")
+    print("\nColumns:")
+    print(list(df.columns))
 
+    print("\nMissing Values:")
     print(df.isna().sum())
 
 
+
 # =========================================================
-# CLEAN ONE DATASET
+# CLEAN SINGLE FILE
 # =========================================================
 
 def clean_dataset(filepath):
@@ -251,33 +258,48 @@ def clean_dataset(filepath):
 
     dataset = detect_dataset(filename)
 
+
     if dataset is None:
 
-        print(f"Skipping {filename}")
+        print(
+            f"Skipping {filename}"
+        )
 
         return
 
-    print("=" * 60)
-    print(f"Cleaning: {filename}")
-    print("=" * 60)
+
+
+    print("\n" + "="*60)
+    print(
+        f"CLEANING {filename}"
+    )
+    print("="*60)
+
+
 
     df = pd.read_csv(
         filepath,
+        header=None,
         dtype=str,
         keep_default_na=False
     )
 
-    print(f"Original rows: {len(df):,}")
 
-    df = df.dropna(how="all")
+    print(
+        f"Original rows: {len(df):,}"
+    )
+
+
+    df = remove_blank_rows(df)
 
     df = remove_titles(df)
 
     df = remove_headers(df)
 
-    df = remove_index_rows(df)
-
-    df = rename_columns(df, dataset)
+    df = rename_columns(
+        df,
+        dataset
+    )
 
     df = clean_text(df)
 
@@ -285,44 +307,63 @@ def clean_dataset(filepath):
 
     df = convert_voters(df)
 
+
+
     validate(df)
+
+
 
     output = os.path.join(
         OUTPUT_DIR,
-        filename.replace(".csv", "_clean.csv")
+        filename.replace(
+            ".csv",
+            "_clean.csv"
+        )
     )
+
 
     df.to_csv(
         output,
         index=False
     )
 
-    print(f"\nSaved: {output}\n")
+
+    print(
+        f"\nSaved: {output}"
+    )
+
 
 
 # =========================================================
-# MAIN
+# RUN ALL DATASETS
 # =========================================================
 
 def main():
 
-    csv_files = [
-        file
-        for file in os.listdir(RAW_DIR)
-        if file.lower().endswith(".csv")
+    files = [
+        f
+        for f in os.listdir(RAW_DIR)
+        if f.lower().endswith(".csv")
     ]
 
-    print(f"\nFound {len(csv_files)} CSV file(s).\n")
 
-    for file in csv_files:
+    print(
+        f"\nFound {len(files)} CSV file(s)"
+    )
+
+
+    for file in files:
 
         clean_dataset(
-            os.path.join(RAW_DIR, file)
+            os.path.join(
+                RAW_DIR,
+                file
+            )
         )
 
-    print("=" * 60)
-    print("Cleaning completed successfully.")
-    print("=" * 60)
+
+    print("\nCleaning completed successfully.")
+
 
 
 if __name__ == "__main__":
