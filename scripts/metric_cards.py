@@ -2,14 +2,14 @@
 ===============================================================================
 KENYA ELECTORAL INFRASTRUCTURE ANALYTICS PLATFORM (KEIAP)
 
-MODULE:
+MODULE
     Metric Cards
 
-PURPOSE:
-    Provides reusable metric cards for displaying key performance
-    indicators throughout the platform.
+DESCRIPTION
+    Reusable Streamlit metric cards for displaying Key Performance
+    Indicators (KPIs) throughout the KEIAP platform.
 
-AUTHOR:
+AUTHOR
     Julie Natasha
 ===============================================================================
 """
@@ -18,36 +18,34 @@ from __future__ import annotations
 
 import streamlit as st
 
+
 # =============================================================================
-# KPI ROW
+# METRIC CARDS
 # =============================================================================
 
 def render_metric_cards(metrics: list[tuple[str, str]]) -> None:
     """
-    Render a responsive row of Streamlit metric cards.
+    Display KPI metric cards in a responsive row.
 
     Parameters
     ----------
-    metrics : list of tuple
-        Each tuple should contain:
+    metrics : list[tuple[str, str]]
 
-            (
-                metric_title,
-                metric_value
-            )
-
-    Example
-    -------
-    metrics = [
-
-        ("Registered Voters", "22.1M"),
-
-        ("Counties", "47"),
-
-        ("Polling Stations", "46,229")
-
-    ]
+        Example
+        -------
+        [
+            ("Registered Voters", "22,120,458"),
+            ("Polling Stations", "46,229"),
+            ("Constituencies", "290"),
+            ("Counties", "47"),
+        ]
     """
+
+    if not metrics:
+
+        st.warning("No metrics available.")
+
+        return
 
     columns = st.columns(len(metrics))
 
@@ -60,4 +58,5 @@ def render_metric_cards(metrics: list[tuple[str, str]]) -> None:
                 label=title,
 
                 value=value,
+
             )

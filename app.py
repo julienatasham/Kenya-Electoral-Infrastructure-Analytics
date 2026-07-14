@@ -2,55 +2,52 @@
 ===============================================================================
 KENYA ELECTORAL INFRASTRUCTURE ANALYTICS PLATFORM (KEIAP)
 
-MODULE
+MODULE:
     Home Dashboard
 
-DESCRIPTION
+PURPOSE:
     Executive dashboard providing a national overview of Kenya's
     electoral infrastructure.
+
+AUTHOR:
+    Julie Natasha
 ===============================================================================
 """
 
+from __future__ import annotations
+
+# =============================================================================
+# IMPORTS
+# =============================================================================
 
 import streamlit as st
 
-
-from config import (
-    APP_NAME,
-    PAGE_TITLE,
-)
-
-
-from utils.theme import load_theme
-
-from utils.loader import load_all_data
-
-from utils.charts import (
-    registered_voters_by_county,
-    county_distribution,
-    polling_stations_per_county,
-)
-
-
 from scripts.sidebar import render_sidebar
 
-from scripts.page_header import render_page_header
-
-from scripts.metric_cards import metric_row
-
-
+from utils.theme import load_theme
+from utils.loader import load_all_data
+from utils.formatting import (
+    format_compact,
+    format_number,
+)
+from utils.charts import (
+    bar_chart,
+    pie_chart,
+)
 
 # =============================================================================
 # PAGE CONFIGURATION
 # =============================================================================
 
 st.set_page_config(
-    page_title=PAGE_TITLE,
+
+    page_title="KEIAP",
+
     layout="wide",
+
     initial_sidebar_state="expanded",
+
 )
-
-
 
 # =============================================================================
 # LOAD GLOBAL THEME
@@ -58,15 +55,11 @@ st.set_page_config(
 
 load_theme()
 
-
-
 # =============================================================================
 # SIDEBAR
 # =============================================================================
 
 render_sidebar()
-
-
 
 # =============================================================================
 # LOAD DATA
@@ -74,114 +67,184 @@ render_sidebar()
 
 polling_df, constituency_df, diaspora_df, prison_df = load_all_data()
 
-
-
 # =============================================================================
-# HEADER
+# DASHBOARD HEADER
 # =============================================================================
 
-render_page_header(
-    title="National Electoral Infrastructure Dashboard",
-    description=(
-        "Interactive analytical platform for exploring Kenya's "
-        "electoral infrastructure datasets."
-    ),
+st.title("Kenya Electoral Infrastructure Analytics Platform")
+
+st.caption(
+    "National Electoral Infrastructure Dashboard"
 )
 
-
+st.divider()
 
 # =============================================================================
-# KEY METRICS
+# KEY PERFORMANCE INDICATORS
 # =============================================================================
 
-total_counties = (
-    constituency_df["county_name"]
-    .nunique()
+registered_voters = int(
+    polling_df["registered_voters"].sum()
 )
 
+polling_stations = len(polling_df)
 
-total_constituencies = (
-    constituency_df["constituency_name"]
-    .nunique()
-)
+constituencies = polling_df["constituency_name"].nunique()
 
+counties = polling_df["county_name"].nunique()
 
-total_polling_stations = (
-    polling_df["polling_station_name"]
-    .nunique()
-)
+col1, col2, col3, col4 = st.columns(4)
 
+with col1:
 
-total_registered_voters = int(
-    constituency_df["registered_voters"]
+    st.metric(
+
+        "Registered Voters",
+
+        format_compact(registered_voters),
+
+        help=format_number(registered_voters),
+
+    )
+
+with col2:
+
+    st.metric(
+
+        "Polling Stations",
+
+        format_number(polling_stations),
+
+    )
+
+with col3:
+
+    st.metric(
+
+        "Constituencies",
+
+        constituencies,
+
+    )
+
+with col4:
+
+    st.metric(
+
+        "Counties",
+
+        counties,
+
+    )
+
+st.divider()
+
+# =============================================================================
+# VISUALIZATIONS
+# =============================================================================
+
+left, right = st.columns(2)
+
+# -------------------------------------------------------------------------
+# Registered Voters by County
+# -------------------------------------------------------------------------
+
+county_summary = (
+
+    polling_df
+
+    .groupby("county_name", as_index=False)
+
+    ["registered_voters"]
+
     .sum()
+
+    .sort_values(
+
+        "registered_voters",
+
+        ascending=False,
+
+    )
+
 )
 
+with left:
 
+    st.subheader("Registered Voters by County")
 
-metric_row(
-    [
-        {
-            "label": "Counties",
-            "value": total_counties,
-        },
+    fig = bar_chart(
 
-        {
-            "label": "Constituencies",
-            "value": total_constituencies,
-        },
+        county_summary.head(10),
 
-        {
-            "label": "Polling Stations",
-            "value": total_polling_stations,
-        },
+        x="county_name",
 
-        {
-            "label": "Registered Voters",
-            "value": f"{total_registered_voters:,}",
-        },
-    ]
-)
+        y="registered_voters",
 
+        title="Top 10 Counties",
 
+    )
+
+    st.plotly_chart(
+
+        fig,
+
+        use_container_width=True,
+
+    )
+
+# -------------------------------------------------------------------------
+# County Share
+# -------------------------------------------------------------------------
+
+with right:
+
+    st.subheader("County Share of Registered Voters")
+
+    fig = pie_chart(
+
+        county_summary.head(10),
+
+        names="county_name",
+
+        values="registered_voters",
+
+        title="Top 10 Counties",
+
+    )
+
+    st.plotly_chart(
+
+        fig,
+
+        use_container_width=True,
+
+    )
 
 # =============================================================================
-# DASHBOARD CHARTS
+# DATASET SUMMARY
 # =============================================================================
 
 st.divider()
 
+st.subheader("Dataset Summary")
 
-st.subheader("Electoral Infrastructure Overview")
+summary = {
 
+    "Polling Stations": len(polling_df),
 
-chart1, chart2 = st.columns(2)
+    "Constituencies": len(constituency_df),
 
+    "Diaspora Stations": len(diaspora_df),
 
-with chart1:
+    "Prison Stations": len(prison_df),
 
-    st.plotly_chart(
-        registered_voters_by_county(constituency_df),
-        use_container_width=True,
-    )
+}
 
+st.dataframe(
 
-with chart2:
+    summary,
 
-    st.plotly_chart(
-        county_distribution(constituency_df),
-        use_container_width=True,
-    )
-
-
-
-st.divider()
-
-
-st.subheader("Polling Infrastructure")
-
-
-st.plotly_chart(
-    polling_stations_per_county(polling_df),
     use_container_width=True,
+
 )

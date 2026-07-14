@@ -2,45 +2,37 @@
 ===============================================================================
 KENYA ELECTORAL INFRASTRUCTURE ANALYTICS PLATFORM (KEIAP)
 
-MODULE:
-    Sidebar
+MODULE
+    Sidebar Navigation
 
-PURPOSE:
-    Renders the application's navigation sidebar.
+DESCRIPTION
+    Provides the application's global navigation sidebar.
+    The sidebar is shared across every page to provide
+    consistent navigation throughout the platform.
 
-AUTHOR:
+AUTHOR
     Julie Natasha
 ===============================================================================
 """
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import streamlit as st
 
 # =============================================================================
-# PAGE DEFINITIONS
+# CONSTANTS
 # =============================================================================
 
-PAGES = [
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
-    ("Home Dashboard", "app.py"),
+LOGO_PATH = PROJECT_ROOT / "assets" / "logo.png"
 
-    ("Polling Centre Finder", "pages/1_Polling_Centre_Finder.py"),
-
-    ("Statistics", "pages/2_Statistics.py"),
-
-    ("Diaspora Voters", "pages/3_Diaspora.py"),
-
-    ("Prison Voters", "pages/4_Prisons.py"),
-
-    ("AI Assistant", "pages/5_AI_Assistant.py"),
-
-]
 
 # =============================================================================
 # SIDEBAR
 # =============================================================================
-
 
 def render_sidebar() -> None:
     """
@@ -48,6 +40,14 @@ def render_sidebar() -> None:
     """
 
     with st.sidebar:
+
+        # ---------------------------------------------------------------------
+        # Branding
+        # ---------------------------------------------------------------------
+
+        if LOGO_PATH.exists():
+
+            st.image(str(LOGO_PATH), use_container_width=True)
 
         st.title("KEIAP")
 
@@ -57,39 +57,65 @@ def render_sidebar() -> None:
 
         st.divider()
 
+        # ---------------------------------------------------------------------
+        # Navigation
+        # ---------------------------------------------------------------------
+
         st.subheader("Navigation")
 
-        for label, page in PAGES:
+        st.page_link(
+            "app.py",
+            label="Home Dashboard",
+            icon="🏠",
+        )
 
-            st.page_link(
-                page,
-                label=label,
-                use_container_width=True,
-            )
+        st.page_link(
+            "pages/1_Polling_Centre_Finder.py",
+            label="Polling Centre Finder",
+            icon="📍",
+        )
+
+        st.page_link(
+            "pages/2_Statistics.py",
+            label="Statistics",
+            icon="📊",
+        )
+
+        st.page_link(
+            "pages/3_Diaspora.py",
+            label="Diaspora Voters",
+            icon="🌍",
+        )
+
+        st.page_link(
+            "pages/4_Prisons.py",
+            label="Prison Voters",
+            icon="🏛",
+        )
+
+        st.page_link(
+            "pages/5_AI_Assistant.py",
+            label="AI Assistant",
+            icon="🤖",
+        )
 
         st.divider()
 
-        st.subheader("Project")
+        # ---------------------------------------------------------------------
+        # Platform Information
+        # ---------------------------------------------------------------------
 
-        st.write("Version")
-        st.caption("1.0.0")
-
-        st.write("Datasets")
+        st.subheader("Platform")
 
         st.caption(
             """
-            • Polling Stations
-
-            • Constituencies
-
-            • Diaspora
-
-            • Prison Voters
+            KEIAP provides interactive analytics,
+            electoral infrastructure insights,
+            and AI-assisted exploration of
+            Kenya's electoral datasets.
             """
         )
 
         st.divider()
 
-        st.caption(
-            "Developed using Streamlit and Plotly."
-        )
+        st.caption("Version 1.0")
