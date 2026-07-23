@@ -50,6 +50,12 @@ load_theme()
 # =============================================================================
 
 polling_df, constituency_df, diaspora_df, prison_df = load_all_data()
+# Statistics page excludes Diaspora and Prison datasets
+statistics_df = polling_df[
+    ~polling_df["county_name"].isin(
+        ["DIASPORA", "PRISONS"]
+    )
+].copy()
 
 # =============================================================================
 # PAGE HEADER
@@ -71,27 +77,33 @@ st.divider()
 # KEY PERFORMANCE INDICATORS
 # =============================================================================
 
-st.header("📌 National Electoral Snapshot")
+# Statistics page excludes Diaspora and Prison records
+statistics_df = polling_df[
+    ~polling_df["county_name"].isin(
+        ["DIASPORA", "PRISONS"]
+    )
+].copy()
 
-st.markdown(
-    """
-    The indicators below summarise the current electoral register and
-    provide an immediate overview of Kenya's electoral infrastructure.
-    """
-)
 registered_voters = int(
-    polling_df["registered_voters"].sum()
+    statistics_df["registered_voters"].sum()
 )
 
-polling_stations = len(polling_df)
+polling_stations = len(statistics_df)
 
-constituencies = constituency_df["constituency_name"].nunique()
+constituencies = (
+    statistics_df["constituency_name"]
+    .nunique()
+)
 
-counties = polling_df["county_name"].nunique()
+counties = (
+    statistics_df["county_name"]
+    .nunique()
+)
 
 average_station_size = round(
-    polling_df["registered_voters"].mean()
+    statistics_df["registered_voters"].mean()
 )
+
 metrics = [
 
     (
@@ -118,19 +130,11 @@ metrics = [
         "Average Polling Station Size",
         f"{average_station_size:,}",
     ),
-    ]
+
+]
 
 render_metric_cards(metrics)
 
-st.caption(
-    """
-    **Dashboard Summary**
-
-    These key performance indicators provide a national overview of
-    Kenya's electoral infrastructure. They form the foundation for the
-    analyses presented throughout this dashboard.
-    """
-)
 st.divider()
 # =============================================================================
 # FILTERS
@@ -746,15 +750,20 @@ electoral resources may need additional reinforcement.
 """
 )
 # =============================================================================
-# TOP CONSTITUENCIES BY REGISTERED VOTERS
+# LARGEST CONSTITUENCIES
 # =============================================================================
 
 st.divider()
 
-st.header("🏆 Top Constituencies by Registered Voters")
+st.header("🏆 Largest Constituencies")
 
-top_constituencies = (
+largest_constituencies = (
     filtered_df
+    .groupby(
+        "constituency_name",
+        as_index=False,
+    )["registered_voters"]
+    .sum()
     .sort_values(
         "registered_voters",
         ascending=False,
@@ -763,9 +772,10 @@ top_constituencies = (
 )
 
 fig = charts.horizontal_bar_chart(
-    top_constituencies,
+    df=largest_constituencies,
     x="registered_voters",
     y="constituency_name",
+    title="",
 )
 
 st.plotly_chart(
@@ -775,21 +785,21 @@ st.plotly_chart(
 
 st.caption(
     """
-    Constituencies with the highest registered voter populations.
+    This chart ranks the 20 constituencies with the highest number of
+    registered voters based on the current filters.
     """
 )
 
-st.success(
+st.info(
     """
-🗳️ **Electoral Insight**
+    **Electoral Insight**
 
-Constituencies with larger voter populations typically require
-greater electoral resources, including polling officials,
-KIEMS kits, ballot papers, logistics support and enhanced
-election-day coordination.
-"""
+    Constituencies with larger registered voter populations generally
+    require more polling stations, election officials, KIEMS kits,
+    ballot papers and logistical support to ensure efficient election
+    management.
+    """
 )
-
 # =============================================================================
 # EXPLORE DATASET
 # =============================================================================
@@ -837,63 +847,51 @@ st.download_button(
 )
 
 # =============================================================================
-# EXECUTIVE SUMMARY
+# EXECUTIVE SUMMARY DATA
 # =============================================================================
 
-st.divider()
+summary_df = (
+    filtered_df
+    .groupby(
+        ["county_name", "constituency_name"],
+        as_index=False,
+    )["registered_voters"]
+    .sum()
+)
 
-st.header("📌 Executive Summary")
+total_voters = int(summary_df["registered_voters"].sum())
 
-total_voters = int(filtered_df["registered_voters"].sum())
+total_constituencies = (
+    summary_df["constituency_name"]
+    .nunique()
+)
 
-total_constituencies = filtered_df["constituency_name"].nunique()
-
-total_counties = filtered_df["county_name"].nunique()
+total_counties = (
+    summary_df["county_name"]
+    .nunique()
+)
 
 largest_county = (
-    filtered_df
+    summary_df
     .groupby("county_name")["registered_voters"]
     .sum()
     .idxmax()
 )
 
 largest_constituency = (
-    filtered_df
-    .sort_values("registered_voters", ascending=False)
+    summary_df
+    .sort_values(
+        "registered_voters",
+        ascending=False,
+    )
     .iloc[0]["constituency_name"]
 )
-
-summary1, summary2 = st.columns(2)
-
-with summary1:
-
-    st.metric(
-        "Registered Voters",
-        f"{total_voters:,}",
-    )
-
-    st.metric(
-        "Constituencies",
-        f"{total_constituencies:,}",
-    )
-
-with summary2:
-
-    st.metric(
-        "Counties",
-        f"{total_counties:,}",
-    )
-
-    st.metric(
-        "Largest Constituency",
-        largest_constituency,
-    )
 
 st.markdown(
     f"""
 ### Summary
 
-This analysis covers **{total_counties} counties** and
+This analysis covers **{total_counties} counties**two being "prisons" and "diaspora" and
 **{total_constituencies} constituencies**, representing
 **{total_voters:,} registered voters**.
 

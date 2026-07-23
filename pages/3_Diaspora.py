@@ -1,16 +1,15 @@
-
 """
 ===============================================================================
 KENYA ELECTORAL INFRASTRUCTURE ANALYTICS PLATFORM (KEIAP)
 
-PAGE
+PAGE:
     Diaspora Voter Registration
 
-DESCRIPTION
-    Interactive dashboard providing insights into Kenya's
-    diaspora voter registration statistics.
+DESCRIPTION:
+    Interactive dashboard for analysing Kenya's diaspora voter
+    registration by country and registration centre.
 
-AUTHOR
+AUTHOR:
     Julie Natasha
 ===============================================================================
 """
@@ -28,20 +27,15 @@ import utils.charts as charts
 
 from utils.loader import load_diaspora_data
 from utils.theme import load_theme
-from scripts.metric_cards import render_metric_cards
 
 # =============================================================================
 # PAGE CONFIGURATION
 # =============================================================================
 
 st.set_page_config(
-
     page_title="Diaspora Voters",
-
     page_icon="🌍",
-
     layout="wide",
-
 )
 
 load_theme()
@@ -51,6 +45,46 @@ load_theme()
 # =============================================================================
 
 diaspora_df = load_diaspora_data()
+diaspora_df = diaspora_df[
+    diaspora_df["county_code"].astype(str).str.upper() != "TOTAL"
+]
+# =============================================================================
+# CLEAN DATA
+# =============================================================================
+
+diaspora_df = diaspora_df.copy()
+
+diaspora_df.columns = (
+    diaspora_df.columns
+    .str.strip()
+    .str.lower()
+)
+
+text_columns = [
+    "county_name",
+    "country_name",
+    "registration_centre_name",
+    "polling_station_name",
+]
+
+for column in text_columns:
+
+    if column in diaspora_df.columns:
+
+        diaspora_df[column] = (
+            diaspora_df[column]
+            .astype(str)
+            .str.strip()
+        )
+
+diaspora_df["registered_voters"] = pd.to_numeric(
+    diaspora_df["registered_voters"],
+    errors="coerce",
+)
+
+diaspora_df = diaspora_df.dropna(
+    subset=["registered_voters"]
+)
 
 # =============================================================================
 # HEADER
@@ -60,63 +94,79 @@ st.title("Diaspora Voter Registration")
 
 st.caption(
     """
-    Explore Kenya's diaspora voter registration statistics
-    by country, registration area and registration centre.
+    Explore Kenya's diaspora voter registration across countries,
+    registration centres and polling stations.
     """
 )
 
 st.divider()
+
 # =============================================================================
 # KEY PERFORMANCE INDICATORS
 # =============================================================================
 
-total_voters = int(diaspora_df["registered_voters"].sum())
-
-countries = diaspora_df["country_name"].nunique()
-
-areas = diaspora_df["registration_area_name"].nunique()
-
-centres = diaspora_df["registration_centre_name"].nunique()
-
-c1, c2, c3, c4 = st.columns(4)
-
-c1.metric(
-    "Registered Voters",
-    f"{total_voters:,}",
+total_voters = int(
+    diaspora_df["registered_voters"].sum()
 )
 
-c2.metric(
-    "Countries",
-    countries,
+countries = (
+    diaspora_df["country_name"]
+    .nunique()
 )
 
-c3.metric(
-    "Registration Areas",
-    areas,
+centres = (
+    diaspora_df["registration_centre_name"]
+    .nunique()
 )
 
-c4.metric(
-    "Registration Centres",
-    centres,
+polling_stations = (
+    diaspora_df["polling_station_name"]
+    .nunique()
 )
+
+metrics = [
+
+    (
+        "Registered Voters",
+        f"{total_voters:,}",
+    ),
+
+    (
+        "Countries",
+        f"{countries:,}",
+    ),
+
+    (
+        "Registration Centres",
+        f"{centres:,}",
+    ),
+
+    (
+        "Polling Stations",
+        f"{polling_stations:,}",
+    ),
+
+]
+
+from scripts.metric_cards import render_metric_cards
+
+render_metric_cards(metrics)
 
 st.divider()
+
 # =============================================================================
 # COUNTRY FILTER
 # =============================================================================
 
-countries = sorted(
+country_list = sorted(
     diaspora_df["country_name"]
     .dropna()
     .unique()
 )
 
 selected_country = st.selectbox(
-
     "Select Country",
-
-    ["All Countries"] + countries,
-
+    ["All Countries"] + country_list,
 )
 
 if selected_country == "All Countries":
@@ -130,6 +180,7 @@ else:
     ]
 
 st.divider()
+
 # =============================================================================
 # COUNTRY OVERVIEW
 # =============================================================================
@@ -141,9 +192,7 @@ country_summary = (
     .groupby(
         "country_name",
         as_index=False,
-    )
-
-    ["registered_voters"]
+    )["registered_voters"]
 
     .sum()
 
@@ -155,6 +204,7 @@ country_summary = (
 )
 
 left, right = st.columns(2)
+
 with left:
 
     st.subheader("Registered Voters by Country")
@@ -167,25 +217,21 @@ with left:
 
         y="country_name",
 
-        title="Registered Voters",
+        title="",
 
     )
 
     st.plotly_chart(
-
         fig,
-
         use_container_width=True,
-
     )
 
     st.caption(
         """
-        Registered diaspora voters by country.
-        Countries with the highest registered voter populations
-        appear at the top.
+        Total registered diaspora voters by country.
         """
     )
+
 with right:
 
     st.subheader("Country Share")
@@ -198,41 +244,36 @@ with right:
 
         values="registered_voters",
 
-        title="Diaspora Share",
+        title="",
 
     )
 
     st.plotly_chart(
-
         fig,
-
         use_container_width=True,
-
     )
 
     st.caption(
         """
         Percentage contribution of each country to the
-        total diaspora voter register.
+        diaspora voter register.
         """
     )
 
 st.divider()
 
 # =============================================================================
-# REGISTRATION AREAS
+# REGISTRATION CENTRES
 # =============================================================================
 
-area_summary = (
+centre_summary = (
 
     filtered_df
 
     .groupby(
-        "registration_area_name",
+        "registration_centre_name",
         as_index=False,
-    )
-
-    ["registered_voters"]
+    )["registered_voters"]
 
     .sum()
 
@@ -247,129 +288,105 @@ left, right = st.columns(2)
 
 with left:
 
-    st.subheader("Registration Areas")
+    st.subheader("Top Registration Centres")
 
     fig = charts.vertical_bar_chart(
 
-        area_summary,
+        centre_summary.head(15),
 
-        x="registration_area_name",
+        x="registration_centre_name",
 
         y="registered_voters",
 
-        title="Registration Areas",
+        title="",
 
     )
 
     st.plotly_chart(
-
         fig,
-
         use_container_width=True,
-
     )
 
     st.caption(
         """
-        Registered voters aggregated by diaspora
-        registration area.
+        Registration centres with the highest numbers of
+        registered diaspora voters.
         """
     )
+
 with right:
 
     st.subheader("Registration Hierarchy")
 
+    hierarchy_df = (
+
+        filtered_df
+
+        .groupby(
+            [
+                "country_name",
+                "registration_centre_name",
+            ],
+            as_index=False,
+        )["registered_voters"]
+
+        .sum()
+
+    )
+
     fig = charts.treemap(
 
-        filtered_df,
+        hierarchy_df,
 
         path=[
             "country_name",
-            "registration_area_name",
             "registration_centre_name",
         ],
 
         values="registered_voters",
 
-        title="Registration Centres",
+        title="",
 
     )
 
     st.plotly_chart(
-
         fig,
-
         use_container_width=True,
-
     )
 
     st.caption(
         """
-        Hierarchical view of diaspora registration
-        centres and their registered voter totals.
+        Hierarchical view of registered voters from
+        country level down to registration centres.
         """
     )
 
 st.divider()
+
 # =============================================================================
-# REGISTRATION HIERARCHY
-# =============================================================================
-
-st.subheader("Registration Hierarchy")
-
-fig = charts.sunburst_chart(
-
-    filtered_df,
-
-    path=[
-        "country_name",
-        "registration_area_name",
-        "registration_centre_name",
-    ],
-
-    values="registered_voters",
-
-    title="Diaspora Registration Hierarchy",
-
-)
-
-st.plotly_chart(
-
-    fig,
-
-    use_container_width=True,
-
-)
-
-st.caption(
-    """
-    Drill down from country to registration area and finally to
-    individual registration centres based on registered voters.
-    """
-)
-
-st.divider()
-# =============================================================================
-# TOP REGISTRATION CENTRES
+# TOP REGISTRATION CENTRES TABLE
 # =============================================================================
 
-st.subheader("Top Registration Centres")
+st.subheader("Top 15 Registration Centres")
 
 top_centres = (
 
     filtered_df
 
+    .groupby(
+        [
+            "country_name",
+            "registration_centre_name",
+        ],
+        as_index=False,
+    )["registered_voters"]
+
+    .sum()
+
     .sort_values(
         "registered_voters",
         ascending=False,
     )
-
-    [[
-        "country_name",
-        "registration_area_name",
-        "registration_centre_name",
-        "registered_voters",
-    ]]
 
     .head(15)
 
@@ -387,21 +404,22 @@ st.dataframe(
 
 st.caption(
     """
-    The fifteen registration centres with the highest number of
-    registered diaspora voters.
+    Registration centres ranked by total registered
+    diaspora voters.
     """
 )
 
 st.divider()
+
 # =============================================================================
-# DATASET
+# DATASET EXPLORER
 # =============================================================================
 
-st.subheader("Diaspora Dataset")
+st.subheader("Dataset Explorer")
 
 search = st.text_input(
     "Search",
-    placeholder="Type a country, registration area or centre..."
+    placeholder="Search country or registration centre..."
 )
 
 display_df = filtered_df.copy()
@@ -413,15 +431,12 @@ if search:
         display_df.astype(str)
 
         .apply(
-
             lambda row:
-
             row.str.contains(
                 search,
                 case=False,
                 na=False,
             )
-
         )
 
         .any(axis=1)
@@ -437,6 +452,9 @@ st.dataframe(
     hide_index=True,
 
 )
+
+st.divider()
+
 # =============================================================================
 # DOWNLOAD
 # =============================================================================
@@ -454,6 +472,40 @@ st.download_button(
     mime="text/csv",
 
 )
+
+st.divider()
+
+# =============================================================================
+# EXECUTIVE SUMMARY
+# =============================================================================
+
+largest_country = (
+    country_summary.iloc[0]["country_name"]
+)
+
+largest_centre = (
+    top_centres.iloc[0]["registration_centre_name"]
+)
+
+st.subheader("Executive Summary")
+
+st.markdown(
+    f"""
+This dashboard summarises **{total_voters:,}** registered diaspora voters
+across **{countries} countries**, **{centres} registration centres** and
+**{polling_stations} polling stations**.
+
+### Key Findings
+
+- **{largest_country}** has the largest registered diaspora voter population.
+- **{largest_centre}** is the largest registration centre.
+- Diaspora voter registration is concentrated within a relatively small
+  number of registration centres.
+- The dashboard supports planning for staffing, election materials,
+  logistics and voter outreach outside Kenya.
+"""
+)
+
 st.divider()
 
 st.caption(
@@ -463,4 +515,3 @@ st.caption(
     Diaspora Voter Registration Dashboard
     """
 )
-    

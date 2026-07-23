@@ -140,54 +140,42 @@ def empty_chart(message: str = "No data available") -> go.Figure:
 # HORIZONTAL BAR CHART
 # =============================================================================
 
+import plotly.express as px
+
+
 def horizontal_bar_chart(
-    df: pd.DataFrame,
-    x: str,
-    y: str,
-    title: str,
-    colour: str = PRIMARY,
-) -> go.Figure:
-    """
-    Create a horizontal bar chart.
-    """
+    df,
+    x,
+    y,
+    title="",
+    color=None,
+    color_scale="Blues",
+):
 
-    if df.empty:
-
-        return empty_chart()
 
     fig = px.bar(
-
         df,
-
         x=x,
-
         y=y,
-
         orientation="h",
-
-        title=title,
-
-        color_discrete_sequence=[colour],
-
+        color=color,
+        color_continuous_scale=color_scale,
+        template="plotly_white",
     )
 
     fig.update_layout(
-
-        yaxis=dict(
-
-            categoryorder="total ascending",
-
-        )
-
+        title=title if title else None,
+        height=650,
+        margin=dict(l=20, r=20, t=60, b=20),
+        yaxis=dict(categoryorder="total ascending"),
+        title_font=dict(size=22),
     )
 
     fig.update_traces(
-
-        hovertemplate="<b>%{y}</b><br>%{x:,.0f}<extra></extra>"
-
+        hovertemplate="<b>%{y}</b><br>Registered Voters: %{x:,}<extra></extra>"
     )
 
-    return apply_theme(fig)
+    return fig
 
 
 # =============================================================================
@@ -295,32 +283,33 @@ def donut_chart(
 def histogram(
     df: pd.DataFrame,
     column: str,
-    title: str,
+    title: str = "",
 ) -> go.Figure:
     """
     Create a histogram.
     """
 
     if df.empty:
-
         return empty_chart()
 
     fig = px.histogram(
-
         df,
-
         x=column,
-
-        title=title,
-
+        nbins=30,
+        template="plotly_white",
         color_discrete_sequence=[PRIMARY],
+    )
 
+    fig.update_layout(
+        title=title if title else None,
+        xaxis_title="Registered Voters",
+        yaxis_title="Number of Polling Stations",
+        bargap=0.05,
     )
 
     fig.update_traces(
-
         opacity=0.85,
-
+        hovertemplate="<b>%{x:,}</b><br>Polling Stations: %{y}<extra></extra>",
     )
 
     return apply_theme(fig)
@@ -333,32 +322,31 @@ def box_plot(
     df: pd.DataFrame,
     x: str,
     y: str,
-    title: str,
+    title: str = "",
 ) -> go.Figure:
     """
     Create a box plot.
     """
 
     if df.empty:
-
         return empty_chart()
 
     fig = px.box(
-
         df,
-
         x=x,
-
         y=y,
-
-        title=title,
-
         color=x,
+        template="plotly_white",
+    )
 
+    fig.update_layout(
+        title=title if title else None,
+        showlegend=False,
+        xaxis_title="County",
+        yaxis_title="Registered Voters",
     )
 
     return apply_theme(fig)
-
 # =============================================================================
 # SCATTER PLOT
 # =============================================================================
@@ -474,7 +462,8 @@ def treemap(
     df,
     path,
     values,
-    title=None
+    title="Relative size of counties and constituencies",
+    
 ):
     """
     Create a clean Plotly treemap.
@@ -494,7 +483,7 @@ def treemap(
     for col in path:
         data[col] = (
             data[col]
-            .fillna("Unknown")
+            .fillna("Total Registered Voters")
             .astype(str)
             .str.strip()
         )

@@ -66,17 +66,17 @@ SCHEMAS = {
     ],
 
 
-    "diaspora": [
-        "country_code",
-        "country_name",
-        "registration_area_code",
-        "registration_area_name",
-        "registration_centre_name",
-        "registration_centre_code",
-        "polling_station_code",
-        "polling_station_name",
-        "registered_voters"
-    ],
+  "diaspora": [
+    "county_code",
+    "county_name",
+    "registration_area_code",
+    "country_name",
+    "registration_centre_code",
+    "registration_centre_name",
+    "polling_station_code",
+    "polling_station_name",
+    "registered_voters",
+],
 
 
     "prisons": [
@@ -226,7 +226,35 @@ def convert_voters(df):
 
     return df
 
+# =========================================================
+# REMOVE NON-KENYAN COUNTIES FROM POLLING DATA
+# =========================================================
 
+def remove_non_counties(df, dataset):
+    """
+    Remove diaspora and prison records from the polling station dataset.
+    """
+
+    if dataset != "polling":
+        return df
+
+    invalid_counties = [
+        "DIASPORA",
+        "PRISONS"
+    ]
+
+    df["county_name"] = (
+        df["county_name"]
+        .astype(str)
+        .str.strip()
+        .str.upper()
+    )
+
+    df = df[
+        ~df["county_name"].isin(invalid_counties)
+    ]
+
+    return df
 
 # =========================================================
 # VALIDATION
@@ -307,7 +335,10 @@ def clean_dataset(filepath):
 
     df = convert_voters(df)
 
-
+    df = remove_non_counties(
+        df,
+        dataset,    
+    )
 
     validate(df)
 

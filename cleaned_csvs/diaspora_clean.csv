@@ -1,4 +1,4 @@
-country_code,country_name,registration_area_code,registration_area_name,registration_centre_name,registration_centre_code,polling_station_code,polling_station_name,registered_voters
+county_code,county_name,registration_area_code,country_name,registration_centre_code,registration_centre_name,polling_station_code,polling_station_name,registered_voters
 291,DIASPORA,5000,TANZANIA,001,KENYA EMBASSY IN DAR ES SALAAM,048291500000101,KENYA EMBASSY IN DAR ES SALAAM,496
 291,DIASPORA,5000,TANZANIA,001,KENYA EMBASSY IN DAR ES SALAAM,048291500000102,KENYA EMBASSY IN DAR ES SALAAM,496
 291,DIASPORA,5000,TANZANIA,002,KENYA CONSULATE IN ARUSHA,048291500000201,KENYA CONSULATE IN ARUSHA,410
