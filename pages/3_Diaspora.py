@@ -178,7 +178,8 @@ else:
     filtered_df = diaspora_df[
         diaspora_df["country_name"] == selected_country
     ]
-
+    
+st.write(filtered_df["registered_voters"].dtype)
 st.divider()
 
 # =============================================================================

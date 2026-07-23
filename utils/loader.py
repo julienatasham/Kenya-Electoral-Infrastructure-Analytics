@@ -7,8 +7,7 @@ MODULE:
 
 PURPOSE:
     Provides centralized functions for loading all cleaned electoral datasets.
-    Keeping dataset paths in one place simplifies maintenance and ensures
-    consistency throughout the application.
+    Cleans extracted PDF artefacts before datasets are used across the platform.
 
 AUTHOR:
     Julie Natasha
@@ -22,6 +21,7 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
+
 # =============================================================================
 # PROJECT DIRECTORIES
 # =============================================================================
@@ -30,8 +30,9 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 DATA_FOLDER = PROJECT_ROOT / "cleaned_csvs"
 
+
 # =============================================================================
-# INTERNAL LOADER
+# INTERNAL CSV LOADER
 # =============================================================================
 
 
@@ -42,12 +43,12 @@ def _load_csv(filename: str) -> pd.DataFrame:
     Parameters
     ----------
     filename : str
-        Name of the CSV file.
+        Dataset filename.
 
     Returns
     -------
     pandas.DataFrame
-        Loaded dataset.
+        Loaded dataframe.
     """
 
     filepath = DATA_FOLDER / filename
@@ -60,41 +61,121 @@ def _load_csv(filename: str) -> pd.DataFrame:
 
 
 # =============================================================================
+# DATA CLEANING FUNCTIONS
+# =============================================================================
+
+
+def _clean_polling_data(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Remove extraction artefacts from polling station dataset.
+
+    Removes:
+    - accidental CSV header row loaded as data
+    - TOTAL summary row
+    - missing geographical records
+    """
+
+    df = df.copy()
+
+    # Remove accidental header row:
+    # county_name = 1, constituency_name = 3
+    df = df[
+        ~df["county_name"]
+        .astype(str)
+        .str.match(r"^\d+$", na=False)
+    ]
+
+    # Remove TOTAL summary row
+    df = df[
+        df["county_name"].notna()
+    ]
+
+    # Remove records without constituency information
+    df = df[
+        df["constituency_name"].notna()
+    ]
+
+    # Standardise text columns
+    text_columns = [
+        "county_name",
+        "constituency_name",
+        "ward_name",
+        "registration_centre_name",
+        "polling_station_name",
+    ]
+
+    for column in text_columns:
+        if column in df.columns:
+            df[column] = (
+                df[column]
+                .astype(str)
+                .str.strip()
+                .str.upper()
+            )
+
+    return df.reset_index(drop=True)
+
+
+# =============================================================================
 # INDIVIDUAL DATASETS
 # =============================================================================
 
+
 @st.cache_data
 def load_polling_data() -> pd.DataFrame:
-    """Load polling station dataset."""
-    return _load_csv("polling_station_clean.csv")
+    """
+    Load and clean polling station dataset.
+    """
+
+    df = _load_csv(
+        "polling_station_clean.csv"
+    )
+
+    return _clean_polling_data(df)
 
 
 @st.cache_data
 def load_constituency_data() -> pd.DataFrame:
-    """Load constituency dataset."""
-    return _load_csv("constituency_clean.csv")
+    """
+    Load constituency dataset.
+    """
+
+    return _load_csv(
+        "constituency_clean.csv"
+    )
 
 
 @st.cache_data
 def load_diaspora_data() -> pd.DataFrame:
-    """Load diaspora dataset."""
-    return _load_csv("diaspora_clean.csv")
+    """
+    Load diaspora voter dataset.
+    """
+
+    return _load_csv(
+        "diaspora_clean.csv"
+    )
 
 
 @st.cache_data
 def load_prison_data() -> pd.DataFrame:
-    """Load prison voter dataset."""
-    return _load_csv("prisons_clean.csv")
+    """
+    Load prison voter dataset.
+    """
+
+    return _load_csv(
+        "prisons_clean.csv"
+    )
 
 
 # =============================================================================
 # LOAD ALL DATASETS
 # =============================================================================
 
+
 @st.cache_data
 def load_all_data():
     """
-    Load every dataset used by the platform.
+    Load all datasets used by KEIAP.
 
     Returns
     -------

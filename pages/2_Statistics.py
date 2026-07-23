@@ -49,13 +49,19 @@ load_theme()
 # LOAD DATA
 # =============================================================================
 
+
 polling_df, constituency_df, diaspora_df, prison_df = load_all_data()
-# Statistics page excludes Diaspora and Prison datasets
+# Statistics page excludes non-geographical records
 statistics_df = polling_df[
-    ~polling_df["county_name"].isin(
+    polling_df["county_name"].notna()
+    & polling_df["constituency_name"].notna()
+    & ~polling_df["county_name"].astype(str).str.match(r"^\d+$")
+    & ~polling_df["constituency_name"].astype(str).str.match(r"^\d+$")
+    & ~polling_df["county_name"].isin(
         ["DIASPORA", "PRISONS"]
     )
 ].copy()
+
 
 # =============================================================================
 # PAGE HEADER
@@ -78,8 +84,13 @@ st.divider()
 # =============================================================================
 
 # Statistics page excludes Diaspora and Prison records
+# Statistics page excludes non-geographical records
 statistics_df = polling_df[
-    ~polling_df["county_name"].isin(
+    polling_df["county_name"].notna()
+    & polling_df["constituency_name"].notna()
+    & ~polling_df["county_name"].astype(str).str.match(r"^\d+$")
+    & ~polling_df["constituency_name"].astype(str).str.match(r"^\d+$")
+    & ~polling_df["county_name"].isin(
         ["DIASPORA", "PRISONS"]
     )
 ].copy()
@@ -495,126 +506,142 @@ st.divider()
 
 # =============================================================================
 # STATISTICAL ANALYSIS
-# =============================================================================
+# =============================================================================#
+st.divider()
 
-st.header("📈 Statistical Analysis")
+st.subheader("📊 Polling Station Size Analysis")
 
-st.markdown(
+st.write(
     """
-    Statistical visualisations help reveal how registered voters are
-    distributed across polling stations. They make it easier to identify
-    patterns, variations and unusually large polling stations that may
-    require additional election planning.
+    This section analyses the distribution of registered voters across Kenya's
+    polling stations. It provides a general overview of polling station capacity
+    and supports understanding of electoral infrastructure requirements.
     """
 )
 
-left, right = st.columns(2)
+# Clean data for analysis
+size_df = filtered_df.copy()
+
+size_df = size_df[
+    size_df["registered_voters"].notna()
+]
+
+size_df = size_df[
+    size_df["polling_station_name"].notna()
+]
+
+
+largest_voters = size_df["registered_voters"].max()
+
+largest_station = (
+    size_df[
+        size_df["registered_voters"] == largest_voters
+    ]
+    .iloc[0]
+)
+
+
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    st.metric(
+        "Largest Polling Station Capacity",
+        f"{int(largest_voters):,} voters"
+    )
+
+with col2:
+    st.metric(
+        "Average Polling Station Size",
+        f"{int(size_df['registered_voters'].mean()):,} voters"
+    )
+
+with col3:
+    st.metric(
+        "Total Polling Stations",
+        f"{len(size_df):,}"
+    )
+
+
+
+st.divider()
+
+# =============================================================================
+# DISTRIBUTION OF POLLING STATION SIZES
+# =============================================================================
+
+left, right = st.columns([2,1])
 
 with left:
 
-    st.subheader("Distribution of Registered Voters")
+    st.subheader("Distribution of Registered Voters per Polling Station")
 
     fig = charts.histogram(
-
         filtered_df,
-
         column="registered_voters",
-
         title="",
+    )
 
+    fig.update_traces(
+        xbins=dict(
+            start=0,
+            end=1000,
+            size=100,
+        )
+    )
+
+    fig.update_layout(
+        xaxis_title="Registered Voters",
+        yaxis_title="Number of Polling Stations",
     )
 
     st.plotly_chart(
-
         fig,
-
         use_container_width=True,
-
     )
 
-    st.caption(
-        """
-        **Chart Caption**
-
-        Frequency distribution of registered voters across polling stations.
-        """
-    )
-
-    st.success(
-        """
-        💡 **Key Insight**
-
-        Most polling stations fall within a similar registration range,
-        while a smaller number have significantly larger electorates.
-
-        This helps identify stations that may require additional electoral
-        resources on polling day.
-        """
-    )
-    
 with right:
 
-    st.subheader("Variation Across Counties")
+    st.subheader("Summary Statistics")
 
-    fig = charts.box_plot(
-
-        filtered_df,
-
-        x="county_name",
-
-        y="registered_voters",
-
-        title="none",
-
+    st.metric(
+        "Average",
+        f"{filtered_df['registered_voters'].mean():.0f}",
     )
 
-    st.plotly_chart(
-
-        fig,
-
-        use_container_width=True,
-
+    st.metric(
+        "Median",
+        f"{filtered_df['registered_voters'].median():.0f}",
     )
 
-    st.caption(
-        """
-        **Chart Caption**
-
-        Comparison of voter registration across counties.
-        """
+    st.metric(
+        "Minimum",
+        f"{filtered_df['registered_voters'].min():.0f}",
     )
 
-    st.info(
-        """
-        📖 **Data Story**
-
-        The box plot summarises how voter registration varies within each
-        county. Counties with wider spreads contain polling stations with
-        very different registration sizes, while isolated points indicate
-        unusually large or unusually small polling stations.
-        """
+    st.metric(
+        "Maximum",
+        f"{filtered_df['registered_voters'].max():.0f}",
     )
 
-st.divider()
-st.subheader("📊 Statistical Summary")
-
-summary_col1, summary_col2, summary_col3 = st.columns(3)
-
-summary_col1.metric(
-    "Average Polling Station Size",
-    f"{filtered_df['registered_voters'].mean():.0f}"
+st.caption(
+    """
+The histogram groups all polling stations into 100-voter intervals,
+illustrating how registered voters are distributed across Kenya's
+polling stations.
+"""
 )
 
-summary_col2.metric(
-    "Median",
-    f"{filtered_df['registered_voters'].median():.0f}"
-)
+st.success(
+    """
+📈 **Statistical Insight**
 
-summary_col3.metric(
-    "Maximum",
-    f"{filtered_df['registered_voters'].max():.0f}"
+Most polling stations are concentrated within the middle voter ranges,
+while comparatively few stations accommodate exceptionally large
+electorates. Understanding this distribution helps election managers
+plan staffing, election materials, KIEMS deployment and polling day
+operations more effectively.
+"""
 )
-
 # =============================================================================
 # ELECTORAL HIERARCHY
 # =============================================================================
